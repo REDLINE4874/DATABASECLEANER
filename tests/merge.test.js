@@ -31,3 +31,15 @@ test('compara encabezados: indica coincidencia total o columnas faltantes', () =
   assert.equal(r.allMatch, false); assert.deepEqual(r.names, ['Id', 'Nombre', 'Edad']);
   assert.deepEqual(r.presence, [[true, true, true], [true, true, false], [false, false, true]]);
 });
+test('permite orientar manualmente encabezados con nombres diferentes', () => {
+  const a = f('a', ['NOMBRE', 'CEL'], [['Ana', '555']]);
+  const b = f('b', ['NAME', 'PHONE'], [['Bob', '666']]);
+  const opts = { manualMappings: [
+    { fileId: undefined, fileIndex: 1, columnIndex: 0, target: 'NOMBRE' },
+    { fileId: undefined, fileIndex: 1, columnIndex: 1, target: 'CEL' }
+  ] };
+  assert.equal(compareHeaders([a, b], opts).allMatch, true);
+  const r = mergeDatasets([a, b], { ...opts, addSource: false });
+  assert.deepEqual(r.names, ['NOMBRE', 'CEL']);
+  assert.deepEqual(r.rows, [['Ana', '555'], ['Bob', '666']]);
+});

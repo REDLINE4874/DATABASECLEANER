@@ -22,6 +22,11 @@ const fmtSize = b => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1
 
 const tableView = new TableView($('table-root'));
 tableView.render();
+let duplicateCount = 0, duplicateBaseId = null;
+const updateDuplicateStat = () => {
+  const stat = $('stats').querySelector('[data-stat="Duplicados"] .stat-value');
+  if (stat) stat.textContent = duplicateCount.toLocaleString();
+};
 
 // ---- Tema (única preferencia en localStorage) ----
 function setTheme(t) {
@@ -41,11 +46,14 @@ dataStore.subscribe(() => {
     ['stats', 'import-report', 'toolbar', 'tabs'].forEach(id => { $(id).hidden = true; });
     tableView.setTable(null); return;
   }
+  const baseId = dataStore.getCurrentBaseId();
+  if (duplicateBaseId !== null && duplicateBaseId !== baseId) duplicateCount = 0;
+  duplicateBaseId = baseId;
   const meta = dataStore.getMeta(), s = dataStore.getStats();
   $('file-label').textContent = meta.size ? `${meta.fileName} · ${fmtSize(meta.size)}` : meta.fileName;
   const items = [['Registros', s.rows.toLocaleString()], ['Columnas', s.columns], ['Celdas vacías', s.empty.toLocaleString()],
-    ['Completitud', `${s.completeness.toFixed(1)} %`], ['Delimitador', delimName(meta.delimiter)], ['Codificación', meta.encoding]];
-  $('stats').replaceChildren(...items.map(([k, v]) => { const d = el('div', 'stat'); d.append(el('span', 'stat-value', String(v)), el('span', 'stat-label', k)); return d; }));
+    ['Completitud', `${s.completeness.toFixed(1)} %`], ['Duplicados', duplicateCount.toLocaleString()], ['Codificación', meta.encoding]];
+  $('stats').replaceChildren(...items.map(([k, v]) => { const d = el('div', 'stat'); d.dataset.stat = k; d.append(el('span', 'stat-value', String(v)), el('span', 'stat-label', k)); return d; }));
   $('stats').hidden = false;
   renderReport(meta.report);
   const tabs = dataStore.getTables(), active = dataStore.getActive();
@@ -71,7 +79,7 @@ function renderReport(r) {
 // ---- Importación ----
 function renderBases() {
   const list = dataStore.getBases();
-  $('bases-wrap').hidden = list.length < 2;
+  $('bases-wrap').hidden = list.length < 1;
   renderTabs($('bases'), list.map(b => ({ id: b.id, name: `${b.name} (${b.rows.toLocaleString()})`, kind: 'base' })), dataStore.getCurrentBaseId(), {
     onSelect: id => dataStore.switchBase(id),
     onClose: async id => {
@@ -160,6 +168,9 @@ $('dup-btn').onclick = async () => {
   const t = dataStore.getActive(), p = await duplicateDialog(t.columns);
   if (!p) return;
   const { groups, stats } = findDuplicates(t, p);
+  duplicateCount = stats.involved;
+  duplicateBaseId = dataStore.getCurrentBaseId();
+  updateDuplicateStat();
   if (!groups.length) return notify('info', 'No se encontraron duplicados con esos criterios.');
   const canDelete = t.kind === 'work';
   const actions = [{ label: 'Cerrar', value: false }, { label: 'Resaltar en la tabla', value: 'highlight' }, { label: 'Crear tabla de duplicados', value: 'table', primary: !canDelete }];

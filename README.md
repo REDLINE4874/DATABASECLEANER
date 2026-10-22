@@ -15,6 +15,21 @@ npm start        # o: python3 -m http.server 8080
 ```
 y abre http://localhost:8080. Pruebas (Node 20+): `npm test`.
 
+## Autenticación con Supabase
+
+El acceso usa Supabase Auth con correo y contraseña. No hay registro público: las cuentas deben ser creadas por el administrador en el panel de Supabase. En el panel de Supabase:
+
+1. Crea un proyecto y habilita el proveedor **Email** en Authentication → Providers.
+2. Copia la **Project URL** y la clave pública **publishable/anon**.
+3. Pégalas en `js/auth/config.js`:
+
+```js
+export const SUPABASE_URL = 'https://tu-proyecto.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY = 'tu-clave-publica';
+```
+
+No pongas la clave `service_role` en el navegador. La página usa `signInWithPassword` y sesiones persistentes de Supabase.
+
 ## Estructura y responsabilidades
 - `js/app.js` — punto de entrada: eventos y coordinación (importación, tema, render).
 - `js/core/dataModel.js` — filas con id estable, columnas, estadísticas. Los valores siempre son texto.

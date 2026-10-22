@@ -56,20 +56,32 @@ export async function exportDialog(tables, activeId, original) {
   const dl = sel([[',', 'Coma ( , )'], [';', 'Punto y coma ( ; )'], ['\t', 'Tabulador'], ['|', 'Barra vertical ( | )']]);
   const [l1, hd] = check('Incluir fila de encabezados', true), [l2, bom] = check('Compatibilidad con Excel (UTF-8 con BOM)', true);
   const a = el('label'), b = el('label'); a.append('Tabla a exportar ', src); b.append('Delimitador ', dl);
-  const grid = el('div', 'col-checks'), tools = el('div', 'form-row'); let cols = [], boxes = [];
+  const grid = el('div', 'col-checks'), tools = el('div', 'form-row'), columnSearch = el('input');
+  columnSearch.type = 'search'; columnSearch.placeholder = 'Buscar columna…'; columnSearch.setAttribute('aria-label', 'Buscar columna');
+  let cols = [], selected = new Set();
+  const shown = () => cols.filter(c => c.name.toLowerCase().includes(columnSearch.value.toLowerCase()));
   const draw = () => {
     const t = src.value === 'original' ? original : tables.find(x => x.id === src.value);
     cols = dialogOrder(t); const vis = new Set(visibleColumns(t).map(c => c.index));
-    grid.replaceChildren();
-    boxes = cols.map(c => { const [l, i] = check(c.name, vis.has(c.index)); grid.append(l); return i; });
+    selected = new Set(vis);
+    columnSearch.value = '';
+    renderColumns();
   };
-  const setAll = on => () => boxes.forEach(b => { b.checked = on; });
+  const renderColumns = () => {
+    grid.replaceChildren();
+    grid.append(...shown().map(c => {
+      const [l, i] = check(c.name, selected.has(c.index));
+      i.onchange = () => i.checked ? selected.add(c.index) : selected.delete(c.index);
+      return l;
+    }));
+  };
+  const setAll = on => () => { shown().forEach(c => on ? selected.add(c.index) : selected.delete(c.index)); renderColumns(); };
   const all = el('button', 'btn btn-sm', 'Marcar todas'), none = el('button', 'btn btn-sm', 'Quitar todas');
-  all.type = none.type = 'button'; all.onclick = setAll(true); none.onclick = setAll(false); src.onchange = draw; draw();
-  tools.append(el('strong', null, 'Columnas a exportar:'), all, none);
+  all.type = none.type = 'button'; all.onclick = setAll(true); none.onclick = setAll(false); src.onchange = draw; columnSearch.oninput = renderColumns; draw();
+  tools.append(el('strong', null, 'Columnas a exportar:'), columnSearch, all, none);
   body.append(a, b, l1, l2, tools, grid, el('p', 'hint', 'Solo se exportan las columnas marcadas; las demás no se incluyen en el archivo. Se descarga un archivo nuevo y el original no se modifica. Excel puede quitar ceros iniciales al abrir el CSV: impórtalo como texto si lo necesitas.'));
   if (!(await openModal({ title: 'Exportar a CSV', body, actions: [{ label: 'Cancelar', value: false }, { label: 'Exportar', value: true, primary: true }] }))) return null;
-  return { source: src.value, delimiter: dl.value, header: hd.checked, bom: bom.checked, columns: cols.filter((_, i) => boxes[i].checked) };
+  return { source: src.value, delimiter: dl.value, header: hd.checked, bom: bom.checked, columns: cols.filter(c => selected.has(c.index)) };
 }
 
 /** Una casilla por columna: las marcadas se conservan y las demás se eliminarán. */
