@@ -13,7 +13,7 @@ const showApp = (session) => {
 };
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  setMessage('Configura SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY en js/auth/config.js.');
+  setMessage('Configura SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY en frontend/js/auth/config.js.');
 } else if (!window.supabase?.createClient) {
   setMessage('No se pudo cargar la biblioteca de Supabase. Revisa tu conexión.');
 } else {

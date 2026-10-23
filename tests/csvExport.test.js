@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { toCsv } from '../js/services/csvExportService.js';
-import { createColumns, createRows } from '../js/core/dataModel.js';
+import { toCsv } from '../frontend/js/services/csvExportService.js';
+import { createColumns, createRows } from '../frontend/js/core/dataModel.js';
 
 const mod = { exports: {} };
-new Function('module', 'exports', readFileSync(new URL('../lib/papaparse.min.js', import.meta.url), 'utf8')).call(mod.exports, mod, mod.exports);
+new Function('module', 'exports', readFileSync(new URL('../frontend/lib/papaparse.min.js', import.meta.url), 'utf8')).call(mod.exports, mod, mod.exports);
 const Papa = mod.exports;
 
 test('exportar y volver a importar devuelve exactamente los mismos valores', () => {

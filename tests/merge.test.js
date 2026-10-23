@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeDatasets } from '../js/services/mergeService.js';
-import { toCsv } from '../js/services/csvExportService.js';
-import { createColumns, createRows } from '../js/core/dataModel.js';
+import { mergeDatasets } from '../frontend/js/services/mergeService.js';
+import { toCsv } from '../frontend/js/services/csvExportService.js';
+import { createColumns, createRows } from '../frontend/js/core/dataModel.js';
 
 const f = (name, cols, rows) => ({ name, columns: createColumns(cols), rows });
 
@@ -23,7 +23,7 @@ test('exportar solo columnas elegidas, en el orden indicado', () => {
   assert.equal(toCsv([cols[2], cols[0]], createRows([['1', '2', '3']])), 'c,a\r\n3,1\r\n');
 });
 
-import { compareHeaders } from '../js/services/mergeService.js';
+import { compareHeaders } from '../frontend/js/services/mergeService.js';
 test('compara encabezados: indica coincidencia total o columnas faltantes', () => {
   const a = f('a', ['Id', 'Nombre'], []), b = f('b', ['id', 'NOMBRE'], []), c = f('c', ['id', 'Edad'], []);
   assert.equal(compareHeaders([a, b]).allMatch, true);

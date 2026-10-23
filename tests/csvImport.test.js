@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildDataset } from '../js/services/csvImportService.js';
-import { dataStore } from '../js/core/dataStore.js';
+import { buildDataset } from '../frontend/js/services/csvImportService.js';
+import { dataStore } from '../frontend/js/core/dataStore.js';
 
-// El bundle UMD de lib/ se carga igual que en el navegador (como script clásico).
+// El bundle UMD de frontend/lib/ se carga igual que en el navegador (como script clásico).
 const mod = { exports: {} };
-new Function('module', 'exports', readFileSync(new URL('../lib/papaparse.min.js', import.meta.url), 'utf8')).call(mod.exports, mod, mod.exports);
+new Function('module', 'exports', readFileSync(new URL('../frontend/lib/papaparse.min.js', import.meta.url), 'utf8')).call(mod.exports, mod, mod.exports);
 const Papa = mod.exports;
 const parse = (text, o = {}) => Papa.parse(text, { skipEmptyLines: true, dynamicTyping: false, ...o });
 

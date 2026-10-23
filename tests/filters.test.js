@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { filterRows } from '../js/services/filterService.js';
-import { createColumns, createRows, createTable } from '../js/core/dataModel.js';
+import { filterRows } from '../frontend/js/services/filterService.js';
+import { createColumns, createRows, createTable } from '../frontend/js/core/dataModel.js';
 
 const t = createTable({ name: 't', columns: createColumns(['n', 'v']),
   rows: createRows([['Ana', '10'], ['ana', ''], ['Beto', '5'], ['Cris', 'x']]) });
@@ -21,7 +21,7 @@ test('numéricos ignoran texto no numérico; AND/OR', () => {
 });
 test('filtrar no modifica la tabla', () => { f([{ col: 0, op: 'eq', value: 'Ana' }]); assert.equal(t.rows.length, 4); });
 
-import { distinctValues, filterByValues } from '../js/services/filterService.js';
+import { distinctValues, filterByValues } from '../frontend/js/services/filterService.js';
 test('filtro por valores: tuplas completas, coincidencia exacta y valores vacíos', () => {
   assert.deepEqual(distinctValues(t, 0).map(([v, n]) => [v, n]), [['Ana', 1], ['ana', 1], ['Beto', 1], ['Cris', 1]]);
   const rows = filterByValues(t, 1, new Set(['', '5']));

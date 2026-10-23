@@ -12,6 +12,8 @@ import { renderTabs } from './ui/tabManager.js';
 import { toCsv, downloadCsv } from './services/csvExportService.js';
 import { valueFilterDialog, duplicateDialog, exportDialog } from './ui/toolDialogs.js';
 import { notify } from './ui/notificationManager.js';
+import './ui/customControls.js';
+import './ui/themeToggle.js';
 
 const $ = id => document.getElementById(id);
 const rec = op => operationManager.record({ baseId: dataStore.getCurrentBaseId(), base: dataStore.getMeta()?.fileName, ...op });
@@ -31,19 +33,19 @@ const updateDuplicateStat = () => {
 // ---- Tema (única preferencia en localStorage) ----
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
-  $('theme-btn').textContent = t === 'dark' ? 'Tema claro' : 'Tema oscuro';
+  $('theme-toggle')?.sync();
   try { localStorage.setItem('dc-theme', t); } catch { /* almacenamiento no disponible */ }
 }
 let saved = null; try { saved = localStorage.getItem('dc-theme'); } catch { /* ignorar */ }
 setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-$('theme-btn').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+$('theme-toggle')?.addEventListener('theme-change', event => setTheme(event.detail.theme));
 
 // ---- Render reactivo al store ----
 dataStore.subscribe(() => {
   renderBases(); renderHistory();
   if (!dataStore.hasData) {
     $('file-label').textContent = 'Ningún archivo cargado';
-    ['stats', 'import-report', 'toolbar', 'tabs'].forEach(id => { $(id).hidden = true; });
+    ['stats', 'import-report', 'toolbar', 'tabs', 'export-btn'].forEach(id => { $(id).hidden = true; });
     tableView.setTable(null); return;
   }
   const baseId = dataStore.getCurrentBaseId();
@@ -55,6 +57,7 @@ dataStore.subscribe(() => {
     ['Completitud', `${s.completeness.toFixed(1)} %`], ['Duplicados', duplicateCount.toLocaleString()], ['Codificación', meta.encoding]];
   $('stats').replaceChildren(...items.map(([k, v]) => { const d = el('div', 'stat'); d.dataset.stat = k; d.append(el('span', 'stat-value', String(v)), el('span', 'stat-label', k)); return d; }));
   $('stats').hidden = false;
+  $('export-btn').hidden = false;
   renderReport(meta.report);
   const tabs = dataStore.getTables(), active = dataStore.getActive();
   $('tabs').hidden = tabs.length < 2; $('toolbar').hidden = false;
@@ -136,6 +139,7 @@ async function startImport(file) {
     const ds = buildDataset(r.data, opts, r.errors);
     dataStore.load({ fileName: file.name, size: file.size, delimiter: r.meta.delimiter, encoding: opts.encoding,
       hasHeader: opts.hasHeader, importedAt: new Date().toISOString(), report: ds.report }, ds.columns, ds.rows);
+    setImportPanel(false);
     rec({ type: 'import', params: { file: file.name, ...opts }, dataset: 'work', affected: ds.rows.length });
     const warn = ds.report.inconsistentRows || ds.report.renamedHeaders.length || ds.report.parseErrors.length;
     notify(warn ? 'warning' : 'success', `${ds.rows.length.toLocaleString()} registros importados${warn ? '. Revisa el informe de importación.' : '.'}`);
@@ -143,6 +147,16 @@ async function startImport(file) {
 }
 
 const input = $('file-input'), zone = $('import-area');
+const setImportPanel = open => {
+  zone.hidden = !open;
+  $('load-base-btn').setAttribute('aria-expanded', String(open));
+};
+$('load-base-btn').onclick = () => {
+  const open = zone.hidden;
+  setImportPanel(open);
+  if (open) $('pick-btn').focus();
+};
+$('close-import-btn').onclick = () => setImportPanel(false);
 $('pick-btn').onclick = () => input.click();
 const importAll = async fs => { for (const f of fs) await startImport(f); };
 input.onchange = () => { const fs = [...input.files]; input.value = ''; importAll(fs); };
@@ -150,6 +164,14 @@ input.onchange = () => { const fs = [...input.files]; input.value = ''; importAl
 ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); }));
 zone.addEventListener('drop', e => importAll([...e.dataTransfer.files]));
 $('merge-btn').onclick = startMerge;
+$('shuffle-btn').onclick = () => {
+  const t = dataStore.getWorkTable();
+  if (t.rows.length < 2) return notify('info', 'Se necesitan al menos 2 registros para cambiar su orden.');
+  const baseId = dataStore.getCurrentBaseId(), previous = dataStore.shuffleWorkRows();
+  rec({ type: 'shuffle', params: {}, dataset: t.id, affected: previous.length, destructive: true, undoable: true,
+    undo: () => { dataStore.switchBase(baseId); dataStore.setWorkRows(previous); } });
+  notify('success', `Se aleatorizó el orden de ${previous.length.toLocaleString()} registros.`);
+};
 
 // ---- Herramientas (Fase 3): cada resultado crea una pestaña; la tabla de trabajo no cambia ----
 const counters = { dup: 0 };
@@ -208,7 +230,9 @@ $('export-btn').onclick = async () => {
 };
 $('undo-btn').onclick = () => {
   const e = operationManager.undoLast(dataStore.getCurrentBaseId());
-  if (e) notify('success', `Se deshizo la eliminación de ${e.affected.toLocaleString()} registros.`);
+  if (e) notify('success', e.type === 'shuffle'
+    ? `Se restauró el orden anterior de ${e.affected.toLocaleString()} registros.`
+    : `Se deshizo la eliminación de ${e.affected.toLocaleString()} registros.`);
 };
 $('restore-btn').onclick = async () => {
   const cur = dataStore.getWorkTable().rows.length, orig = dataStore.getOriginal().rows.length;
@@ -221,6 +245,7 @@ $('restore-btn').onclick = async () => {
   notify('success', 'Datos de trabajo restaurados al estado original.');
 };
 const OP_NAMES = { import: 'Importación', filter: 'Filtro', 'duplicates-table': 'Tabla de duplicados', 'delete-duplicates': 'Eliminación de duplicados', export: 'Exportación', restore: 'Restauración', merge: 'Combinación de archivos', 'delete-columns': 'Eliminación de columnas', 'columns-view': 'Vista de columnas' };
+OP_NAMES.shuffle = 'Aleatorización de registros';
 function renderHistory() {
   const ops = operationManager.list();
   $('undo-btn').disabled = !operationManager.canUndo(dataStore.getCurrentBaseId());

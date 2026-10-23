@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dataStore } from '../js/core/dataStore.js';
-import { operationManager } from '../js/core/operationManager.js';
-import { createColumns, createRows } from '../js/core/dataModel.js';
+import { dataStore } from '../frontend/js/core/dataStore.js';
+import { operationManager } from '../frontend/js/core/operationManager.js';
+import { createColumns, createRows } from '../frontend/js/core/dataModel.js';
 
 const load = () => dataStore.load({ fileName: 'x.csv' }, createColumns(['a']), createRows([['1'], ['2'], ['3'], ['4']]));
 const ids = () => dataStore.getWorkTable().rows.map(r => r.v[0]);
@@ -19,7 +19,7 @@ test('eliminar, deshacer y restaurar conservan orden y originales', () => {
   assert.deepEqual(ids(), ['1', '2', '3', '4']); assert.equal(operationManager.canUndo(), false);
 });
 
-import { toCsv } from '../js/services/csvExportService.js';
+import { toCsv } from '../frontend/js/services/csvExportService.js';
 test('columnas: ocultar no pierde datos; eliminar no toca el original; reinsertar tras eliminar columna', () => {
   dataStore.load({ fileName: 'y.csv' }, createColumns(['a', 'b', 'c']), createRows([['1', 'x', 'p'], ['2', 'y', 'q'], ['3', 'z', 'r']]));
   const w = dataStore.getWorkTable();

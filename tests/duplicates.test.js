@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findDuplicates, rowsToRemove } from '../js/services/duplicateService.js';
-import { createColumns, createRows, createTable } from '../js/core/dataModel.js';
+import { findDuplicates, rowsToRemove } from '../frontend/js/services/duplicateService.js';
+import { createColumns, createRows, createTable } from '../frontend/js/core/dataModel.js';
 
 const mk = rows => createTable({ name: 't', columns: createColumns(['a', 'b']), rows: createRows(rows) });
 

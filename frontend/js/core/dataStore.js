@@ -39,6 +39,23 @@ export const dataStore = {
     for (const r of state.work.rows) (ids.has(r.id) ? removed : kept).push(r);
     state.work = { ...state.work, rows: kept }; touch(state); return removed;
   },
+  /** Mezcla aleatoriamente las filas de trabajo y devuelve el orden anterior para poder deshacerlo. */
+  shuffleWorkRows() {
+    const previous = state.work.rows.slice();
+    const rows = previous.slice();
+    for (let i = rows.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rows[i], rows[j]] = [rows[j], rows[i]];
+    }
+    state.work = { ...state.work, rows };
+    touch(state);
+    return previous;
+  },
+  /** Restaura un orden de filas guardado por una operación reversible. */
+  setWorkRows(rows) {
+    state.work = { ...state.work, rows: rows.slice() };
+    touch(state);
+  },
   /** Devuelve filas eliminadas a su posición original en la base indicada (por defecto la activa). */
   reinsertRows(rows, baseId) {
     const b = baseId ? bases.find(x => x.id === baseId) : state; if (!b) return;
