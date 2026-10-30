@@ -17,7 +17,16 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 } else if (!window.supabase?.createClient) {
   setMessage('No se pudo cargar la biblioteca de Supabase. Revisa tu conexión.');
 } else {
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      // Mantiene la sesión durante la vida de esta pestaña; al cerrarla,
+      // el navegador descarta sessionStorage. Supabase renueva el token
+      // automáticamente mientras la pestaña permanezca abierta.
+      storage: window.sessionStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
 
   const signIn = async () => {
     setBusy(true); setMessage('Iniciando sesión…');
