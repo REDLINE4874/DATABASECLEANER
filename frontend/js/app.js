@@ -39,13 +39,40 @@ function setTheme(t) {
 let saved = null; try { saved = localStorage.getItem('dc-theme'); } catch { /* ignorar */ }
 setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 $('theme-toggle')?.addEventListener('theme-change', event => setTheme(event.detail.theme));
+$('empty-import-btn')?.addEventListener('click', () => $('load-base-btn')?.click());
+$('empty-guide-btn')?.addEventListener('click', () => notify('info', 'Flujo recomendado: importar CSV → revisar delimitadores y filas → limpiar duplicados y columnas → exportar el resultado.'));
+
+function syncWorkspaceState() {
+  const empty = $('workspace-empty');
+  if (empty) empty.hidden = dataStore.hasData;
+}
+
+function renderQualitySummary() {
+  const stats = dataStore.getStats();
+  const original = dataStore.getOriginal();
+  const work = dataStore.getWorkTable();
+  const completeness = Number(stats.completeness.toFixed(1));
+  const progress = $('quality-progress');
+
+  $('quality-percent').textContent = `${completeness.toFixed(1)}%`;
+  progress.setAttribute('aria-valuenow', String(completeness));
+  progress.setAttribute('aria-valuetext', `${completeness.toFixed(1)}% de las celdas están completas`);
+  progress.firstElementChild.style.width = `${completeness}%`;
+  $('quality-detail').textContent = stats.cells
+    ? `${stats.empty.toLocaleString()} de ${stats.cells.toLocaleString()} celdas están vacías.`
+    : 'No hay registros para evaluar todavía.';
+
+  const removedRows = Math.max(0, original.rows.length - work.rows.length);
+  const removedColumns = Math.max(0, original.columns.length - work.columns.length);
+  $('quality-changes').textContent = `${removedRows.toLocaleString()} registros retirados · ${removedColumns.toLocaleString()} columnas eliminadas`;
+}
 
 // ---- Render reactivo al store ----
 dataStore.subscribe(() => {
-  renderBases(); renderHistory();
+  renderBases(); renderHistory(); syncWorkspaceState();
   if (!dataStore.hasData) {
     $('file-label').textContent = 'Ningún archivo cargado';
-    ['stats', 'import-report', 'toolbar', 'tabs', 'export-btn'].forEach(id => { $(id).hidden = true; });
+    ['stats', 'quality-panel', 'import-report', 'toolbar', 'tabs', 'export-btn'].forEach(id => { $(id).hidden = true; });
     tableView.setTable(null); return;
   }
   const baseId = dataStore.getCurrentBaseId();
@@ -57,6 +84,8 @@ dataStore.subscribe(() => {
     ['Completitud', `${s.completeness.toFixed(1)} %`], ['Duplicados', duplicateCount.toLocaleString()], ['Codificación', meta.encoding]];
   $('stats').replaceChildren(...items.map(([k, v]) => { const d = el('div', 'stat'); d.dataset.stat = k; d.append(el('span', 'stat-value', String(v)), el('span', 'stat-label', k)); return d; }));
   $('stats').hidden = false;
+  $('quality-panel').hidden = false;
+  renderQualitySummary();
   $('export-btn').hidden = false;
   renderReport(meta.report);
   const tabs = dataStore.getTables(), active = dataStore.getActive();
@@ -196,7 +225,7 @@ $('dup-btn').onclick = async () => {
   if (!groups.length) return notify('info', 'No se encontraron duplicados con esos criterios.');
   const canDelete = t.kind === 'work';
   const actions = [{ label: 'Cerrar', value: false }, { label: 'Resaltar en la tabla', value: 'highlight' }, { label: 'Crear tabla de duplicados', value: 'table', primary: !canDelete }];
-  if (canDelete) actions.push({ label: 'Eliminar excedentes (conservar el primero)', value: 'first' }, { label: 'Eliminar excedentes (conservar el último)', value: 'last' });
+  if (canDelete) actions.push({ label: 'Eliminar excedentes (conservar el primero)', value: 'first' }, { label: 'Eliminar excedentes (conservar el último)', value: 'last' }, { label: 'Elegir manualmente qué conservar', value: 'manual' });
   const choice = await openModal({ title: 'Resultado de duplicados', actions,
     body: el('p', null, `${stats.groups.toLocaleString()} grupos duplicados · ${stats.involved.toLocaleString()} registros involucrados · ${stats.excess.toLocaleString()} registros excedentes.`) });
   if (choice === 'highlight') {
@@ -205,6 +234,34 @@ $('dup-btn').onclick = async () => {
   } else if (choice === 'table') {
     dataStore.addTable(createTable({ name: `Duplicados ${++counters.dup} (${stats.involved.toLocaleString()})`, kind: 'duplicates', columns: t.columns, rows: groups.flat() }));
     rec({ type: 'duplicates-table', params: p, dataset: t.id, affected: stats.involved });
+  } else if (choice === 'manual') {
+    const manual = new Map();
+    const body = el('div', 'cond-list');
+    groups.forEach((group, index) => {
+      const label = el('label');
+      const info = el('span', null, `Grupo ${index + 1} (${group.length} registros)`);
+      const select = el('select');
+      group.forEach((r, rowIndex) => {
+        const line = r.v.map(v => (v === '' ? '(vacío)' : String(v))).join(' | ') || '(vacío)';
+        const option = new Option(`${rowIndex + 1}: ${line.slice(0, 80)}${line.length > 80 ? '…' : ''}`, r.id);
+        select.append(option);
+      });
+      select.value = String(group[0].id);
+      manual.set(index, group[0].id);
+      select.onchange = () => manual.set(index, select.value);
+      label.append(info, ' ', select);
+      body.append(label);
+    });
+    const ok = await openModal({ title: 'Elegir qué registro conservar en cada grupo', actions: [{ label: 'Cancelar', value: false }, { label: 'Aplicar', value: true, primary: true }], body });
+    if (!ok) return notify('info', 'Selección cancelada. No se modificó ningún dato.');
+    const rm = rowsToRemove(groups, 'manual', manual);
+    const confirm = await openModal({ title: 'Confirmar eliminación', actions: [{ label: 'Cancelar', value: false }, { label: 'Eliminar registros', value: true, primary: true }],
+      body: el('p', null, `Se eliminarán ${rm.length.toLocaleString()} de ${t.rows.length.toLocaleString()} registros de los datos de trabajo. El archivo original no se modifica.`) });
+    if (!confirm) return notify('info', 'Eliminación cancelada. No se modificó ningún dato.');
+    const ids = new Set(rm.map(r => r.id));
+    const baseId = dataStore.getCurrentBaseId(), removed = dataStore.removeRows(ids);
+    rec({ type: 'delete-duplicates', params: { ...p, keep: 'manual', manual: [...manual.entries()].map(([idx, id]) => ({ group: idx, id })) }, dataset: t.id, affected: removed.length, destructive: true, undoable: true, undo: () => dataStore.reinsertRows(removed, baseId) });
+    notify('success', `${rm.length.toLocaleString()} registros duplicados eliminados de los datos de trabajo.`);
   } else if (choice === 'first' || choice === 'last') {
     const rm = rowsToRemove(groups, choice);
     const ok = await openModal({ title: 'Confirmar eliminación', actions: [{ label: 'Cancelar', value: false }, { label: 'Eliminar registros', value: true, primary: true }],
@@ -216,6 +273,8 @@ $('dup-btn').onclick = async () => {
     notify('success', `${rm.length.toLocaleString()} registros duplicados eliminados de los datos de trabajo.`);
   }
 };
+$('quality-filter-btn').onclick = () => $('filter-btn').click();
+$('quality-duplicates-btn').onclick = () => $('dup-btn').click();
 
 // ---- Exportación, deshacer, restaurar e historial (Fase 4) ----
 const slug = n => n.replace(/\.[^.]+$/, '').replace(/[^\p{L}\p{N}_-]+/gu, '_');

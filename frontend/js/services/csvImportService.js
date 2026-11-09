@@ -1,9 +1,12 @@
 import { createColumns, createRows, uniqueHeaders } from '../core/dataModel.js';
 
+const WORKER_FILE_SIZE = 5 * 1024 * 1024;
+
 /** Lee el archivo con Papa Parse (global). Todo se mantiene como texto: sin dynamicTyping. */
 export function parseFile(file, { delimiter = '', encoding = 'UTF-8' } = {}, preview = 0) {
   return new Promise((resolve, reject) => Papa.parse(file, {
     delimiter, encoding, preview, skipEmptyLines: true, dynamicTyping: false,
+    worker: preview === 0 && file.size >= WORKER_FILE_SIZE && Papa.WORKERS_SUPPORTED,
     complete: resolve, error: reject,
   }));
 }

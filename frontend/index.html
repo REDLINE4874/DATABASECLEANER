@@ -22,23 +22,28 @@
     </form>
   </section>
   <header class="app-header">
-    <h1>DataCleaner</h1>
-    <button id="load-base-btn" class="load-base-btn" type="button" aria-expanded="false" aria-controls="import-area">
-      <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></svg>
-      <span>Cargar base</span>
-    </button>
-    <button id="export-btn" class="icon-btn export-icon" type="button" aria-label="Exportar a Excel" title="Exportar a Excel" hidden>
-      <img src="assets/icons/ICON%20EXCEL.svg" alt="" aria-hidden="true" />
-      <span class="export-label">Exportar</span>
-    </button>
-    <button id="auth-logout" class="icon-btn logout-icon" type="button" aria-label="Cerrar sesión" title="Cerrar sesión" hidden>
-      <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-        <path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" />
-        <path d="M13 8l4 4-4 4M8 12h9" />
-      </svg>
-      <span class="sr-only">Cerrar sesión</span>
-    </button>
-    <theme-toggle id="theme-toggle" size="md"></theme-toggle>
+    <div class="brand-wrap">
+      <div class="brand-mark" aria-hidden="true">DC</div>
+      <h1>DataCleaner</h1>
+    </div>
+    <div class="header-actions">
+      <button id="load-base-btn" class="load-base-btn" type="button" aria-expanded="false" aria-controls="import-area">
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></svg>
+        <span>Cargar base</span>
+      </button>
+      <button id="export-btn" class="icon-btn export-icon" type="button" aria-label="Exportar a Excel" title="Exportar a Excel" hidden>
+        <img src="assets/icons/ICON%20EXCEL.svg" alt="" aria-hidden="true" />
+        <span class="export-label">Exportar</span>
+      </button>
+      <button id="auth-logout" class="icon-btn logout-icon" type="button" aria-label="Cerrar sesión" title="Cerrar sesión" hidden>
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" />
+          <path d="M13 8l4 4-4 4M8 12h9" />
+        </svg>
+        <span class="sr-only">Cerrar sesión</span>
+      </button>
+      <theme-toggle id="theme-toggle" size="md"></theme-toggle>
+    </div>
   </header>
 
   <main>
@@ -52,6 +57,40 @@
         <p id="auth-user" class="context-value"></p>
       </div>
     </section>
+    <section id="workspace-empty" class="workspace-empty" aria-live="polite">
+      <div class="empty-copy">
+        <span class="context-eyebrow">Espacio de trabajo</span>
+        <h2>Listo para importar y limpiar tus datos</h2>
+        <p>Sube un CSV, revisa la vista previa, corrige duplicados y exporta el resultado final con un flujo guiado.</p>
+      </div>
+      <div class="empty-actions">
+        <button id="empty-import-btn" class="btn btn-primary" type="button">Importar CSV</button>
+        <button id="empty-guide-btn" class="btn" type="button">Ver flujo</button>
+      </div>
+      <div class="empty-grid" aria-label="Pasos del flujo de trabajo">
+        <article class="empty-card">
+          <span class="empty-badge">01</span>
+          <h3>Cargar</h3>
+          <p>Importa un archivo CSV o TSV desde tu equipo.</p>
+        </article>
+        <article class="empty-card">
+          <span class="empty-badge">02</span>
+          <h3>Revisar</h3>
+          <p>Confirma delimitadores, encabezados y filas inconsistentes.</p>
+        </article>
+        <article class="empty-card">
+          <span class="empty-badge">03</span>
+          <h3>Limpiar</h3>
+          <p>Aplica filtros, elimina duplicados y prepara la base para su uso.</p>
+        </article>
+        <article class="empty-card">
+          <span class="empty-badge">04</span>
+          <h3>Exportar</h3>
+          <p>Descarga el resultado limpio en el formato final.</p>
+        </article>
+      </div>
+    </section>
+
     <section id="import-area" class="dropzone" aria-label="Importar CSV" hidden>
       <div class="dropzone-head">
         <div><span class="dropzone-eyebrow">Nueva carga</span><h2>Importar base de datos</h2></div>
@@ -63,6 +102,31 @@
     </section>
 
     <section id="stats" class="stats" aria-label="Estadísticas" hidden></section>
+    <section id="quality-panel" class="quality-panel" aria-label="Resumen de la base activa" hidden>
+      <div class="quality-main">
+        <div class="quality-heading">
+          <div>
+            <span class="context-eyebrow">Resumen de la base activa</span>
+            <h2>Completitud de celdas</h2>
+          </div>
+          <strong id="quality-percent" class="quality-percent">100.0%</strong>
+        </div>
+        <div id="quality-progress" class="quality-progress" role="progressbar" aria-label="Completitud de celdas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+          <span></span>
+        </div>
+        <p id="quality-detail" class="quality-detail"></p>
+      </div>
+      <div class="quality-side">
+        <div>
+          <span class="context-eyebrow">Cambios en los datos de trabajo</span>
+          <p id="quality-changes" class="quality-changes"></p>
+        </div>
+        <div class="quality-actions" aria-label="Acciones rápidas">
+          <button id="quality-filter-btn" class="btn" type="button">Abrir filtros</button>
+          <button id="quality-duplicates-btn" class="btn" type="button">Buscar duplicados</button>
+        </div>
+      </div>
+    </section>
     <details id="import-report" class="report" hidden></details>
 
     <nav id="toolbar" class="toolbar" aria-label="Herramientas de depuración" hidden>

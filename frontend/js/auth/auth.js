@@ -5,15 +5,24 @@ const form = $('auth-form'), email = $('auth-email'), password = $('auth-passwor
 const submit = $('auth-submit'), message = $('auth-message');
 const setMessage = text => { message.textContent = text; };
 const setBusy = busy => { submit.disabled = busy; };
-const showApp = (session) => {
-  const authenticated = Boolean(session?.user);
-  document.body.classList.toggle('auth-locked', !authenticated);
-  $('auth-user').textContent = authenticated ? session.user.email : '';
+const hasValidSupabaseConfig = () => {
+  const url = String(SUPABASE_URL ?? '').trim();
+  const key = String(SUPABASE_PUBLISHABLE_KEY ?? '').trim();
+  return !!url && !!key && !url.includes('*') && !key.includes('*') && !url.includes('tu-proyecto') && !key.includes('tu-clave');
+};
+const showApp = (session, demo = false) => {
+  const authenticated = !demo && Boolean(session?.user);
+  const authScreen = $('auth-screen');
+  if (authScreen) authScreen.hidden = authenticated || demo;
+  document.body.classList.toggle('auth-locked', !authenticated && !demo);
+  $('auth-user').textContent = demo ? 'Modo demo' : (authenticated ? session.user.email : '');
   $('auth-logout').hidden = !authenticated;
 };
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  setMessage('Configura SUPABASE_URL y SUPABASE_PUBLISHABLE_KEY en frontend/js/auth/config.js.');
+if (!hasValidSupabaseConfig()) {
+  showApp(null, true);
+  if (form) form.hidden = true;
+  setMessage('Sin credenciales de Supabase. Se inicia en modo demo local.');
 } else if (!window.supabase?.createClient) {
   setMessage('No se pudo cargar la biblioteca de Supabase. Revisa tu conexión.');
 } else {

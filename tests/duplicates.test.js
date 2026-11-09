@@ -16,6 +16,13 @@ test('estadísticas, conservar primero/último y conservar ids', () => {
   assert.deepEqual(rowsToRemove(groups, 'first').map(r => r.v[1]), ['z', 'w', 'q']);
   assert.deepEqual(rowsToRemove(groups, 'last').map(r => r.v[1]), ['x', 'z', 'y']);
 });
+test('manual: conserva la fila elegida en cada grupo', () => {
+  const t = mk([['1', 'x'], ['2', 'y'], ['1', 'z'], ['1', 'w'], ['2', 'q']]);
+  const { groups } = findDuplicates(t, { cols: [0] });
+  const manual = { 0: groups[0][2].id, 1: groups[1][0].id };
+  assert.deepEqual(rowsToRemove(groups, 'manual', manual).map(r => r.v[1]), ['x', 'z', 'q']);
+  assert.deepEqual(rowsToRemove(groups, 'manual', new Map(Object.entries(manual))).map(r => r.v[1]), ['x', 'z', 'q']);
+});
 test('vacíos e ignorar mayúsculas configurables', () => {
   const t = mk([['', ''], ['', ''], ['A', '1'], ['a', '1']]);
   assert.equal(findDuplicates(t, { ignoreEmpty: true }).groups.length, 0);

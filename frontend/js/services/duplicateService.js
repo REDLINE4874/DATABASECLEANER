@@ -13,6 +13,18 @@ export function findDuplicates(table, { cols = [], ignoreCase = false, ignoreEmp
   return { groups, stats: { groups: groups.length, involved, excess: involved - groups.length } };
 }
 
-/** Filas a eliminar conservando la primera o la última de cada grupo (orden original del archivo). */
-export const rowsToRemove = (groups, keep) =>
-  groups.flatMap(g => (keep === 'last' ? g.slice(0, -1) : g.slice(1)));
+/** Filas a eliminar conservando la primera, la última o una elección manual por grupo. */
+export const rowsToRemove = (groups, keep, manualSelections = null) => {
+  if (keep === 'manual') {
+    const manual = manualSelections instanceof Map
+      ? manualSelections
+      : new Map(Object.entries(manualSelections ?? {}).map(([key, value]) => [Number(key), value]));
+
+    return groups.flatMap((group, index) => {
+      const chosen = manual.get(index) ?? manual.get(String(index)) ?? group[0]?.id;
+      const keepRow = group.find(r => String(r.id) === String(chosen)) || group[0];
+      return group.filter(r => String(r.id) !== String(keepRow.id));
+    });
+  }
+  return groups.flatMap(g => (keep === 'last' ? g.slice(0, -1) : g.slice(1)));
+};

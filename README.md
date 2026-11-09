@@ -1,12 +1,15 @@
 # DataCleaner
 
-Aplicación web estática para importar archivos CSV, revisarlos en una tabla tipo gestor SQL y (en próximas fases) depurarlos y exportarlos. **Todo se procesa en tu navegador; ningún archivo se envía a servicios externos.**
+Aplicación web estática para importar, revisar, limpiar y exportar archivos CSV. **Todo se procesa en tu navegador; ningún archivo se envía a servicios externos.**
 
-## Estado: Fases 1 y 2
-Incluye: importación con vista previa (delimitador, codificación, encabezados), tabla con paginación, ordenamiento y encabezados fijos, estadísticas básicas, informe de importación y tema claro/oscuro.
-Funciones: importación con vista previa, tabla paginada y ordenable, estadísticas, filtro por valores de una columna, duplicados (resaltar, tabla de duplicados, eliminar excedentes conservando primero o último), conservar columnas (las no marcadas se eliminan), pestañas de resultados, exportación CSV, deshacer, restaurar originales e historial.
+## Estado
+El flujo principal está implementado: importar y previsualizar, revisar la tabla y el informe, limpiar y exportar. Incluye tabla paginada y ordenable, estadísticas de calidad, informe de importación y temas claro/oscuro.
+
+Funciones disponibles: filtro por valores de una columna; detección de duplicados (resaltar, crear tabla, eliminar excedentes conservando primero o último, o elegir manualmente qué conservar en cada grupo); conservar columnas; pestañas de resultados; combinar varias bases; exportar CSV; deshacer eliminaciones, restaurar originales e historial.
+
+El análisis de archivos de 5 MiB o más se ejecuta en el Web Worker de Papa Parse para evitar bloquear la interfaz durante el parseo. La normalización del conjunto y su almacenamiento siguen usando memoria del navegador.
+
 Varias bases a la vez: cada CSV se carga como base independiente (con sus pestañas, historial y datos originales). "Combinar bases…" pregunta cuáles unir, muestra si los encabezados encajan y crea una base nueva apilando los registros (las que falten quedan vacías).
-Pendiente: elegir manualmente el registro a conservar, Web Worker para archivos muy grandes.
 
 ## Ejecutar
 Los módulos ES requieren servidor (no funciona abriendo `index.html` con `file://`):
@@ -28,7 +31,7 @@ export const SUPABASE_URL = 'https://tu-proyecto.supabase.co';
 export const SUPABASE_PUBLISHABLE_KEY = 'tu-clave-publica';
 ```
 
-No pongas la clave `service_role` en el navegador. La página usa `signInWithPassword` y sesiones persistentes de Supabase.
+No pongas la clave `service_role` en el navegador. La página usa `signInWithPassword` y sesiones persistentes de Supabase. Si no configuras `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`, la aplicación arranca en modo demo local para poder probarla sin credenciales.
 
 ## Estructura y responsabilidades
 - `frontend/index.html` — punto de entrada de la aplicación.
@@ -43,7 +46,7 @@ No pongas la clave `service_role` en el navegador. La página usa `signInWithPas
 - `backend/` — reservado para una futura API; actualmente no hay servidor propio.
 - `tests/` — pruebas automatizadas de los servicios y el estado.
 
-Se omitieron a propósito `tabManager`, `workers`, y los servicios de filtros, duplicados, columnas y exportación hasta que su fase los necesite.
+La importación usa Papa Parse incluido localmente. Los servicios de filtros, duplicados, columnas y exportación están separados de la interfaz para facilitar sus pruebas y mantenimiento.
 
 ## Integridad de datos
 No se usa conversión de tipos: `0012` sigue siendo `0012`. Ajustes inevitables, siempre informados: filas con menos celdas se completan con vacíos; encabezados vacíos o repetidos se renombran (`Columna N`, `nombre (2)`); las líneas totalmente vacías se omiten.
@@ -52,4 +55,4 @@ No se usa conversión de tipos: `0012` sigue siendo `0012`. Ajustes inevitables,
 Sube la carpeta a GitHub y activa GitHub Pages sobre la rama principal.
 
 ## Limitaciones conocidas
-Archivos muy grandes (>100 000 filas o cientos de MB) se leen completos en memoria. El ordenamiento de ~100 000 filas ocurre en el hilo principal. Sin persistencia entre sesiones.
+Los archivos se mantienen completos en memoria y la normalización del resultado ocurre en el hilo principal; archivos de cientos de MB pueden exceder la memoria disponible aunque el parseo use un worker. El ordenamiento grande también ocurre en el hilo principal. Sin persistencia entre sesiones: al cerrar o recargar la página se pierde el trabajo.
