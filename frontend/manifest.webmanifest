@@ -2,7 +2,7 @@
   "id": "./",
   "name": "DataCleaner",
   "short_name": "DataCleaner",
-  "description": "Importa, limpia y exporta archivos CSV en tu navegador.",
+  "description": "Importa y limpia archivos CSV y Excel en tu navegador.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

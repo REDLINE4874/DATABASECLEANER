@@ -9,7 +9,7 @@ import { findDuplicates, rowsToRemove } from './services/duplicateService.js';
 import { columnsDialog } from './ui/toolDialogs.js';
 import { mergeDialog } from './ui/mergeDialog.js';
 import { renderTabs } from './ui/tabManager.js';
-import { toCsv, downloadCsv } from './services/csvExportService.js';
+import { toCsv, toXlsx, saveFile } from './services/csvExportService.js';
 import { valueFilterDialog, duplicateDialog, exportDialog } from './ui/toolDialogs.js';
 import { notify } from './ui/notificationManager.js';
 import './ui/customControls.js';
@@ -133,13 +133,15 @@ async function startMerge() {
 }
 
 async function startImport(file) {
+  const isExcel = /\.(xlsx|xls)$/i.test(file.name);
   const opts = { delimiter: '', hasHeader: true, encoding: 'UTF-8' };
   const body = el('div'), controls = el('div', 'form-row'), info = el('p', 'hint'), box = el('div', 'preview-box');
   const field = (label, input) => { const l = el('label'); l.append(label + ' ', input); return l; };
   const dSel = el('select'); DELIMS.forEach(([v, t]) => dSel.append(new Option(t, v)));
   const eSel = el('select'); [['UTF-8', 'UTF-8'], ['ISO-8859-1', 'Latin-1 (ISO-8859-1)'], ['windows-1252', 'Windows-1252']].forEach(([v, t]) => eSel.append(new Option(t, v)));
   const hChk = el('input'); hChk.type = 'checkbox'; hChk.checked = true;
-  controls.append(field('Delimitador', dSel), field('Codificación', eSel), field('La primera fila contiene encabezados', hChk));
+  if (!isExcel) controls.append(field('Delimitador', dSel), field('Codificación', eSel));
+  controls.append(field('La primera fila contiene encabezados', hChk));
   body.append(controls, info, box);
   let token = 0, detected = ',';
   async function refresh() {
@@ -149,7 +151,9 @@ async function startImport(file) {
       if (t !== token) return;
       detected = r.meta.delimiter;
       const ds = buildDataset(r.data, opts);
-      info.textContent = `Delimitador: ${delimName(opts.delimiter || detected)}. Vista previa de ${ds.rows.length} registro(s).`;
+      info.textContent = isExcel
+        ? `Hoja: ${r.meta.sheetName}. ${r.sheets.length} hoja(s) se cargarán en vistas separadas. Vista previa de ${ds.rows.length} registro(s).`
+        : `Delimitador: ${delimName(opts.delimiter || detected)}. Vista previa de ${ds.rows.length} registro(s).`;
       box.replaceChildren(buildTableEl(ds.columns, ds.rows.map(x => x.v)));
     } catch (e) { box.textContent = `No se pudo leer el archivo: ${e.message || e}`; }
   }
@@ -166,8 +170,12 @@ async function startImport(file) {
   try {
     const r = await parseFile(file, opts, 0);
     const ds = buildDataset(r.data, opts, r.errors);
+    const extraSheets = (r.sheets || []).slice(1).map(sheet => {
+      const sheetData = buildDataset(sheet.data, opts);
+      return { name: sheet.name, columns: sheetData.columns, rows: sheetData.rows };
+    });
     dataStore.load({ fileName: file.name, size: file.size, delimiter: r.meta.delimiter, encoding: opts.encoding,
-      hasHeader: opts.hasHeader, importedAt: new Date().toISOString(), report: ds.report }, ds.columns, ds.rows);
+      hasHeader: opts.hasHeader, importedAt: new Date().toISOString(), report: ds.report, sheetNames: r.sheets?.map(s => s.name) }, ds.columns, ds.rows, extraSheets);
     setImportPanel(false);
     rec({ type: 'import', params: { file: file.name, ...opts }, dataset: 'work', affected: ds.rows.length });
     const warn = ds.report.inconsistentRows || ds.report.renamedHeaders.length || ds.report.parseErrors.length;
@@ -189,9 +197,28 @@ $('close-import-btn').onclick = () => setImportPanel(false);
 $('pick-btn').onclick = () => input.click();
 const importAll = async fs => { for (const f of fs) await startImport(f); };
 input.onchange = () => { const fs = [...input.files]; input.value = ''; importAll(fs); };
-['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag'); }));
-['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); }));
-zone.addEventListener('drop', e => importAll([...e.dataTransfer.files]));
+let fileDragDepth = 0;
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+document.addEventListener('dragenter', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); fileDragDepth++;
+  $('drop-overlay').hidden = false;
+});
+document.addEventListener('dragover', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+});
+document.addEventListener('dragleave', e => {
+  if (!hasFiles(e)) return;
+  fileDragDepth = Math.max(0, fileDragDepth - 1);
+  if (!fileDragDepth) $('drop-overlay').hidden = true;
+});
+document.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); fileDragDepth = 0; $('drop-overlay').hidden = true;
+  const files = [...e.dataTransfer.files];
+  if (files.length) importAll(files);
+});
 $('merge-btn').onclick = startMerge;
 $('shuffle-btn').onclick = () => {
   const t = dataStore.getWorkTable();
@@ -283,8 +310,30 @@ $('export-btn').onclick = async () => {
   if (!p) return;
   if (!p.columns.length) return notify('warning', 'Selecciona al menos una columna para exportar.');
   const t = p.source === 'original' ? { name: 'original', ...dataStore.getOriginal() } : dataStore.getTables().find(x => x.id === p.source);
-  downloadCsv(toCsv(p.columns, t.rows, p), `${slug(dataStore.getMeta().fileName)}_${slug(t.name)}.csv`);
-  rec({ type: 'export', params: { table: t.name, delimiter: p.delimiter }, dataset: t.id ?? 'original', affected: t.rows.length });
+  const ext = p.format === 'xlsx' ? 'xlsx' : 'csv';
+  const filename = `${slug(dataStore.getMeta().fileName)}_${slug(t.name)}.${ext}`;
+  let fileHandle = null;
+  if (window.showSaveFilePicker) {
+    const excel = p.format === 'xlsx';
+    try {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: excel ? 'Libro de Excel' : 'Archivo CSV', accept: {
+          [excel ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv']: [`.${ext}`],
+        } }],
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      if (e.name !== 'NotAllowedError') return notify('error', `No se pudo elegir la ubicación: ${e.message || e}`);
+      notify('info', 'El navegador usará su descarga habitual y la ubicación configurada.');
+    }
+  } else notify('info', 'El navegador guardará el archivo con su descarga habitual y su configuración de ubicación.');
+  const blob = p.format === 'xlsx'
+    ? toXlsx(p.columns, t.rows, { header: p.header, sheetName: t.name })
+    : new Blob([toCsv(p.columns, t.rows, p)], { type: 'text/csv;charset=utf-8' });
+  try { await saveFile(blob, filename, fileHandle); }
+  catch (e) { return notify('error', `No se pudo guardar el archivo: ${e.message || e}`); }
+  rec({ type: 'export', params: { table: t.name, format: p.format, delimiter: p.delimiter }, dataset: t.id ?? 'original', affected: t.rows.length });
   notify('success', `Exportados ${t.rows.length.toLocaleString()} registros y ${p.columns.length} columna(s) de "${t.name}".`);
 };
 $('undo-btn').onclick = () => {

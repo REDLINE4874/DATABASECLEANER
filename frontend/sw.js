@@ -1,8 +1,8 @@
-const CACHE_NAME = 'datacleaner-v1';
+const CACHE_NAME = 'datacleaner-v4';
 const APP_FILES = [
   './', './index.html', './manifest.webmanifest',
   './css/styles.css', './css/table.css', './css/components.css',
-  './lib/papaparse.min.js', './assets/icons/logo-icon.svg',
+  './lib/papaparse.min.js', './lib/xlsx.full.min.js', './lib/XLSX_LICENSE', './assets/icons/logo-icon.svg',
   './assets/icons/logo-icon-192.png', './assets/icons/logo-icon-512.png',
   './assets/icons/ICON%20EXCEL.svg',
   './js/app.js', './js/auth/auth.js', './js/auth/config.js',
