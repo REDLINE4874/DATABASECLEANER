@@ -9,12 +9,12 @@ const touch = b => { b.stats = null; b.activeId = b.work.id; emit(); };
 
 export const dataStore = {
   /** Agrega una base nueva (no reemplaza las existentes) y la activa. Las filas se comparten por referencia. */
-  load(meta, columns, rows, additionalTables = []) {
+  load(meta, columns, rows, additionalTables = [], initialStats = null) {
     const work = createTable({ name: meta.sheetName || 'Datos de trabajo', columns, rows: rows.slice() });
     const tables = additionalTables.map(({ name, columns: sheetColumns, rows: sheetRows }) =>
       createTable({ name, columns: sheetColumns, rows: sheetRows, kind: 'sheet' }));
     state = { id: `b${++seq}`, meta: Object.freeze({ ...meta }), original: Object.freeze({ columns, rows: Object.freeze(rows.slice()) }),
-      work, stats: null, tables, activeId: work.id };
+      work, stats: initialStats, tables, activeId: work.id };
     bases.push(state); emit();
   },
   get hasData() { return !!state; },

@@ -32,8 +32,8 @@ export async function valueFilterDialog(table) {
   all.onclick = () => { shown.forEach(([v]) => selected.add(v)); draw(); };
   none.onclick = () => { selected.clear(); draw(); };
   colSel.onchange = load; search.oninput = draw;
-  const top = el('div', 'form-row'); const l = el('label'); l.append('Columna a filtrar ', colSel); top.append(l, search, all, none);
-  body.append(top, info, list); load();
+  const top = el('div', 'filter-controls'); const l = el('label'); l.append('Columna a filtrar ', colSel); top.append(l, search, all, none);
+  body.append(top, el('p', 'hint', 'Las casillas marcadas indican los valores que se conservarán y serán visibles en los registros mostrados.'), info, list); load();
   const ok = await openModal({ title: 'Filtrar por valores de una columna', body,
     actions: [{ label: 'Cancelar', value: false }, { label: 'Mostrar registros', value: true, primary: true }] });
   return ok ? { col: +colSel.value, values: new Set(selected) } : null;

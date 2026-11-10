@@ -1,14 +1,15 @@
-const CACHE_NAME = 'datacleaner-v4';
+const CACHE_NAME = 'datacleaner-v20';
 const APP_FILES = [
   './', './index.html', './manifest.webmanifest',
   './css/styles.css', './css/table.css', './css/components.css',
-  './lib/papaparse.min.js', './lib/xlsx.full.min.js', './lib/XLSX_LICENSE', './assets/icons/logo-icon.svg',
+  './lib/papaparse.min.js', './lib/xlsx.full.min.js', './lib/XLSX_LICENSE', './assets/icons/logo-icon.svg', './assets/icons/app-icon.svg',
   './assets/icons/logo-icon-192.png', './assets/icons/logo-icon-512.png',
   './assets/icons/ICON%20EXCEL.svg',
   './js/app.js', './js/auth/auth.js', './js/auth/config.js',
   './js/core/dataModel.js', './js/core/dataStore.js', './js/core/operationManager.js',
   './js/services/columnService.js', './js/services/csvExportService.js',
-  './js/services/csvImportService.js', './js/services/duplicateService.js',
+  './js/services/csvImportService.js', './js/services/excelImportWorker.js', './js/services/datasetWorker.js',
+  './js/services/duplicateService.js',
   './js/services/filterService.js', './js/services/mergeService.js',
   './js/ui/customControls.js', './js/ui/mergeDialog.js', './js/ui/modalManager.js',
   './js/ui/notificationManager.js', './js/ui/tableView.js', './js/ui/tabManager.js',

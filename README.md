@@ -7,7 +7,7 @@ El flujo principal está implementado: importar y previsualizar, revisar la tabl
 
 Funciones disponibles: filtro por valores de una columna; detección de duplicados (resaltar, crear tabla, eliminar excedentes conservando primero o último, o elegir manualmente qué conservar en cada grupo); conservar columnas; pestañas de resultados; combinar varias bases; exportar CSV o Excel (.xlsx); deshacer eliminaciones, restaurar originales e historial.
 
-El análisis de archivos de 5 MiB o más se ejecuta en el Web Worker de Papa Parse para evitar bloquear la interfaz durante el parseo. La normalización del conjunto y su almacenamiento siguen usando memoria del navegador.
+Los CSV de 5 MiB o más se parsean con un Web Worker de Papa Parse. Los libros Excel se analizan en un Web Worker y el resultado de la vista previa se reutiliza al importar. La normalización de conjuntos de 2.000 filas o más también se ejecuta en un worker; el estado final sigue usando memoria del navegador.
 
 Se pueden importar CSV/TSV/TXT y libros Excel `.xlsx`/`.xls`; cada hoja de Excel se carga en una vista separada dentro de la misma base. Cada archivo se carga como base independiente (con sus pestañas, historial y datos originales). "Combinar bases…" pregunta cuáles unir, muestra si los encabezados encajan y crea una base nueva apilando los registros (las que falten quedan vacías).
 
@@ -40,7 +40,7 @@ No pongas la clave `service_role` en el navegador. La página usa `signInWithPas
 - `frontend/index.html` — punto de entrada de la aplicación.
 - `frontend/js/app.js` — eventos y coordinación (importación, tema, render).
 - `frontend/js/core/` — modelo, estado central y operaciones.
-- `frontend/js/services/` — importación, exportación, filtros, duplicados y combinación.
+- `frontend/js/services/` — importación, exportación, filtros, duplicados y combinación. Los workers de Excel y normalización se encuentran en esta carpeta.
 - `frontend/js/ui/` — tabla, diálogos, pestañas, avisos y controles.
 - `frontend/js/auth/` — integración de autenticación con Supabase.
 - `frontend/css/` — estilos de layout, temas, tabla y componentes.
@@ -53,7 +53,7 @@ No pongas la clave `service_role` en el navegador. La página usa `signInWithPas
 La importación usa Papa Parse y SheetJS incluidos localmente. Los servicios de filtros, duplicados, columnas y exportación están separados de la interfaz para facilitar sus pruebas y mantenimiento.
 
 ## Integridad de datos
-No se usa conversión de tipos: `0012` sigue siendo `0012`. Ajustes inevitables, siempre informados: filas con menos celdas se completan con vacíos; encabezados vacíos o repetidos se renombran (`Columna N`, `nombre (2)`); las líneas totalmente vacías se omiten.
+No se usa conversión de tipos: `0012` sigue siendo `0012`. Ajustes informados: filas y columnas completamente vacías se eliminan automáticamente; filas con menos celdas se completan con vacíos; encabezados vacíos o repetidos se renombran (`Columna N`, `nombre (2)`).
 
 ## Publicar
 Sube la carpeta a GitHub y activa GitHub Pages sobre la rama principal.

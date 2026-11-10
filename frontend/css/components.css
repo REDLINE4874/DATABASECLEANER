@@ -47,6 +47,11 @@ select { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events
 .dc-select__option[aria-selected="true"] { font-weight: 700; }
 .form-row { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
 .form-row > label { display: inline-grid; gap: .3rem; color: var(--muted); font-size: .88rem; font-weight: 650; }
+.filter-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr) auto auto; align-items: end; gap: .75rem; }
+.filter-controls > label { display: grid; gap: .3rem; min-width: 0; color: var(--muted); font-size: .88rem; font-weight: 650; }
+.filter-controls .dc-select { width: 100%; }
+.filter-controls > input[type="search"], .filter-controls > .btn { height: 44px; }
+.filter-controls > .btn { white-space: nowrap; }
 details.report > summary { display: flex; align-items: center; gap: .55rem; }
 details.report > summary::marker { color: var(--accent); }
 details.report[open] > summary { margin-bottom: .65rem; color: var(--accent); }
@@ -73,6 +78,9 @@ dialog::backdrop { background: rgba(4, 17, 21, .58); backdrop-filter: blur(5px);
 .mapping-row { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
 
 @media (max-width: 520px) {
+  .filter-controls { grid-template-columns: 1fr 1fr; }
+  .filter-controls > label, .filter-controls > input[type="search"] { grid-column: 1 / -1; }
+  .filter-controls > .btn { width: 100%; padding-inline: .5rem; }
   dialog { width: calc(100vw - 1rem); max-height: calc(100vh - 1rem); border-radius: 18px; }
   @supports (height: 100dvh) {
     dialog { max-height: calc(100dvh - 1rem); }

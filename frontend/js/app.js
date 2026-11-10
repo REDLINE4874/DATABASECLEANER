@@ -1,6 +1,6 @@
 import { dataStore } from './core/dataStore.js';
 import { operationManager } from './core/operationManager.js';
-import { parseFile, buildDataset } from './services/csvImportService.js';
+import { parseFile, buildDataset, buildDatasetAsync, releaseParsedFile } from './services/csvImportService.js';
 import { TableView, buildTableEl } from './ui/tableView.js';
 import { openModal } from './ui/modalManager.js';
 import { createTable, createColumns, createRows } from './core/dataModel.js';
@@ -18,16 +18,33 @@ import './ui/themeToggle.js';
 const $ = id => document.getElementById(id);
 const rec = op => operationManager.record({ baseId: dataStore.getCurrentBaseId(), base: dataStore.getMeta()?.fileName, ...op });
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const operationTooltip = el('div', 'operation-tooltip');
+operationTooltip.id = 'operation-tooltip'; operationTooltip.setAttribute('role', 'tooltip'); operationTooltip.hidden = true;
+document.body.append(operationTooltip);
+const hideOperationTooltip = button => { button.removeAttribute('aria-describedby'); operationTooltip.hidden = true; };
+document.querySelectorAll('.operation-btn').forEach(button => {
+  const show = () => {
+    operationTooltip.textContent = button.querySelector('span')?.textContent.trim() || button.getAttribute('aria-label') || '';
+    operationTooltip.hidden = false;
+    button.setAttribute('aria-describedby', operationTooltip.id);
+    const rect = button.getBoundingClientRect(), width = operationTooltip.offsetWidth, height = operationTooltip.offsetHeight;
+    const left = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), innerWidth - width - 8);
+    const top = rect.bottom + height + 8 <= innerHeight ? rect.bottom + 6 : Math.max(8, rect.top - height - 6);
+    operationTooltip.style.left = `${left}px`; operationTooltip.style.top = `${top}px`;
+  };
+  button.addEventListener('pointerenter', show);
+  button.addEventListener('pointerleave', () => { if (document.activeElement !== button) hideOperationTooltip(button); });
+  button.addEventListener('focus', show);
+  button.addEventListener('blur', () => { if (!button.matches(':hover')) hideOperationTooltip(button); });
+});
 const DELIMS = [['', 'Detectar automáticamente'], [',', 'Coma ( , )'], [';', 'Punto y coma ( ; )'], ['\t', 'Tabulador'], ['|', 'Barra vertical ( | )']];
 const delimName = d => (DELIMS.find(x => x[0] === d) || [d, d === 'varios' ? 'varios archivos' : `"${d}"`])[1].replace('Detectar automáticamente', 'automático');
-const fmtSize = b => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
-
 const tableView = new TableView($('table-root'));
 tableView.render();
 let duplicateCount = 0, duplicateBaseId = null;
 const updateDuplicateStat = () => {
-  const stat = $('stats').querySelector('[data-stat="Duplicados"] .stat-value');
-  if (stat) stat.textContent = duplicateCount.toLocaleString();
+  const counter = $('duplicate-count');
+  if (counter) counter.textContent = duplicateCount.toLocaleString();
 };
 
 // ---- Tema (única preferencia en localStorage) ----
@@ -58,33 +75,33 @@ function renderQualitySummary() {
   progress.setAttribute('aria-valuenow', String(completeness));
   progress.setAttribute('aria-valuetext', `${completeness.toFixed(1)}% de las celdas están completas`);
   progress.firstElementChild.style.width = `${completeness}%`;
-  $('quality-detail').textContent = stats.cells
-    ? `${stats.empty.toLocaleString()} de ${stats.cells.toLocaleString()} celdas están vacías.`
-    : 'No hay registros para evaluar todavía.';
+  $('quality-detail').textContent = `${stats.empty.toLocaleString()} de ${stats.cells.toLocaleString()} celdas vacías`;
 
   const removedRows = Math.max(0, original.rows.length - work.rows.length);
   const removedColumns = Math.max(0, original.columns.length - work.columns.length);
-  $('quality-changes').textContent = `${removedRows.toLocaleString()} registros retirados · ${removedColumns.toLocaleString()} columnas eliminadas`;
+  $('removed-rows-count').textContent = removedRows.toLocaleString();
+  $('removed-columns-count').textContent = removedColumns.toLocaleString();
 }
 
 // ---- Render reactivo al store ----
 dataStore.subscribe(() => {
   renderBases(); renderHistory(); syncWorkspaceState();
   if (!dataStore.hasData) {
-    $('file-label').textContent = 'Ningún archivo cargado';
-    ['stats', 'quality-panel', 'import-report', 'toolbar', 'tabs', 'export-btn'].forEach(id => { $(id).hidden = true; });
+    $('file-label').hidden = true;
+    duplicateCount = 0; duplicateBaseId = null; updateDuplicateStat();
+    ['stats', 'import-report', 'toolbar', 'tabs', 'export-btn'].forEach(id => { $(id).hidden = true; });
     tableView.setTable(null); return;
   }
   const baseId = dataStore.getCurrentBaseId();
   if (duplicateBaseId !== null && duplicateBaseId !== baseId) duplicateCount = 0;
   duplicateBaseId = baseId;
+  updateDuplicateStat();
   const meta = dataStore.getMeta(), s = dataStore.getStats();
-  $('file-label').textContent = meta.size ? `${meta.fileName} · ${fmtSize(meta.size)}` : meta.fileName;
-  const items = [['Registros', s.rows.toLocaleString()], ['Columnas', s.columns], ['Celdas vacías', s.empty.toLocaleString()],
-    ['Completitud', `${s.completeness.toFixed(1)} %`], ['Duplicados', duplicateCount.toLocaleString()], ['Codificación', meta.encoding]];
+  $('file-label').textContent = meta.fileName;
+  $('file-label').hidden = false;
+  const items = [['Registros', s.rows.toLocaleString()], ['Codificación', meta.encoding]];
   $('stats').replaceChildren(...items.map(([k, v]) => { const d = el('div', 'stat'); d.dataset.stat = k; d.append(el('span', 'stat-value', String(v)), el('span', 'stat-label', k)); return d; }));
   $('stats').hidden = false;
-  $('quality-panel').hidden = false;
   renderQualitySummary();
   $('export-btn').hidden = false;
   renderReport(meta.report);
@@ -97,6 +114,8 @@ dataStore.subscribe(() => {
 
 function renderReport(r) {
   const lines = [...(r.notes || [])];
+  if (r.removedEmptyRows) lines.push(`${r.removedEmptyRows.toLocaleString()} fila(s) completamente vacías se eliminaron automáticamente.`);
+  if (r.removedEmptyColumns) lines.push(`${r.removedEmptyColumns.toLocaleString()} columna(s) completamente vacías se eliminaron automáticamente.`);
   if (r.inconsistentRows) lines.push(`${r.inconsistentRows} fila(s) con distinto número de columnas: se completaron con celdas vacías.`);
   if (r.extraColumns) lines.push(`${r.extraColumns} columna(s) adicional(es) sin encabezado: se nombraron "Columna N".`);
   r.renamedHeaders.forEach(h => lines.push(`Encabezado ${h.index + 1}: "${h.from}" → "${h.to}".`));
@@ -105,7 +124,8 @@ function renderReport(r) {
   box.hidden = !lines.length;
   if (!lines.length) return;
   const ul = el('ul'); lines.forEach(l => ul.append(el('li', null, l)));
-  box.replaceChildren(el('summary', null, `Informe de importación: ${lines.length} observación(es). Los valores de las celdas no se modificaron.`), ul);
+  box.replaceChildren(el('summary', null, `Informe de importación · ${lines.length} observación(es)`),
+    el('p', 'report-note', 'Los valores de las celdas no se modificaron.'), ul);
 }
 
 // ---- Importación ----
@@ -164,23 +184,28 @@ async function startImport(file) {
   const ok = await openModal({ title: `Vista previa: ${file.name}`, body,
     actions: [{ label: 'Cancelar', value: false }, { label: 'Importar', value: true, primary: true }] });
   token++;
-  if (!ok) return notify('info', 'Importación cancelada. No se modificó ningún dato.');
+  if (!ok) { releaseParsedFile(file); return notify('info', 'Importación cancelada. No se modificó ningún dato.'); }
 
   notify('info', 'Importando archivo…', 2000);
   try {
     const r = await parseFile(file, opts, 0);
-    const ds = buildDataset(r.data, opts, r.errors);
-    const extraSheets = (r.sheets || []).slice(1).map(sheet => {
-      const sheetData = buildDataset(sheet.data, opts);
-      return { name: sheet.name, columns: sheetData.columns, rows: sheetData.rows };
-    });
+    releaseParsedFile(file);
+    const ds = await buildDatasetAsync(r.data, opts, r.errors);
+    const extraSheets = [];
+    for (const sheet of (r.sheets || []).slice(1)) {
+      const sheetData = await buildDatasetAsync(sheet.data, opts);
+      extraSheets.push({ name: sheet.name, columns: sheetData.columns, rows: sheetData.rows });
+    }
     dataStore.load({ fileName: file.name, size: file.size, delimiter: r.meta.delimiter, encoding: opts.encoding,
-      hasHeader: opts.hasHeader, importedAt: new Date().toISOString(), report: ds.report, sheetNames: r.sheets?.map(s => s.name) }, ds.columns, ds.rows, extraSheets);
+      hasHeader: opts.hasHeader, importedAt: new Date().toISOString(), report: ds.report, sheetNames: r.sheets?.map(s => s.name) }, ds.columns, ds.rows, extraSheets,
+      { rows: ds.report.totalRows, columns: ds.report.columns, cells: ds.report.totalRows * ds.report.columns,
+        empty: ds.report.emptyCells, completeness: ds.report.totalRows * ds.report.columns
+          ? (1 - ds.report.emptyCells / (ds.report.totalRows * ds.report.columns)) * 100 : 100 });
     setImportPanel(false);
     rec({ type: 'import', params: { file: file.name, ...opts }, dataset: 'work', affected: ds.rows.length });
     const warn = ds.report.inconsistentRows || ds.report.renamedHeaders.length || ds.report.parseErrors.length;
     notify(warn ? 'warning' : 'success', `${ds.rows.length.toLocaleString()} registros importados${warn ? '. Revisa el informe de importación.' : '.'}`);
-  } catch (e) { notify('error', `La importación falló: ${e.message || e}`); }
+  } catch (e) { releaseParsedFile(file); notify('error', `La importación falló: ${e.message || e}`); }
 }
 
 const input = $('file-input'), zone = $('import-area');
@@ -300,8 +325,6 @@ $('dup-btn').onclick = async () => {
     notify('success', `${rm.length.toLocaleString()} registros duplicados eliminados de los datos de trabajo.`);
   }
 };
-$('quality-filter-btn').onclick = () => $('filter-btn').click();
-$('quality-duplicates-btn').onclick = () => $('dup-btn').click();
 
 // ---- Exportación, deshacer, restaurar e historial (Fase 4) ----
 const slug = n => n.replace(/\.[^.]+$/, '').replace(/[^\p{L}\p{N}_-]+/gu, '_');
