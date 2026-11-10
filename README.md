@@ -18,6 +18,9 @@ npm start        # o: python3 -m http.server 8080 --directory frontend
 ```
 y abre http://localhost:8080. Pruebas (Node 20+): `npm test`.
 
+## Instalar como app
+La página incluye un manifiesto PWA y un modo sin conexión. En Chrome, abre la página servida por HTTPS (o `http://localhost:8080` para desarrollo) y usa **Instalar DataCleaner** desde el menú del navegador. Chrome mostrará `logo-icon` como icono de la app.
+
 ## Autenticación con Supabase
 
 El acceso usa Supabase Auth con correo y contraseña. No hay registro público: las cuentas deben ser creadas por el administrador en el panel de Supabase. En el panel de Supabase:
